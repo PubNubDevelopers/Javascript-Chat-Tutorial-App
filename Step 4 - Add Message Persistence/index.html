@@ -111,6 +111,9 @@
                 window.addEventListener('pagehide', () => { // Leave the channel when the tab closes, so the others' count drops right away.
                     subscription.unsubscribe();
                 });
+                window.addEventListener('pageshow', (event) => { // Back button: the browser restored this page from its cache, so subscribe again.
+                    if (event.persisted) subscription.subscribe();
+                });
                 pubnub.addListener({ // Count who is online once the connection to PubNub is up.
                     status: (statusEvent) => {
                         if (statusEvent.category === 'PNConnectedCategory') {

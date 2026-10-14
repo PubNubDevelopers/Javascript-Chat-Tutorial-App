@@ -105,7 +105,10 @@
                 nameInput.value = displayName;
 
                 function readMessage(message) { // Messages from steps 2-4 are plain text; from step 5 on they carry a name.
-                    return typeof message === 'string' ? { text: message, name: '' } : message;
+                    if (message && typeof message === 'object') { // Anyone with the keys can publish, so don't trust the shape.
+                        return { text: String(message.text ?? ''), name: typeof message.name === 'string' ? message.name : '' };
+                    }
+                    return { text: String(message ?? ''), name: '' };
                 }
 
                 const subscription = channel.subscription({ receivePresenceEvents: true }); // Subscribe to receive messages and presence events.
@@ -122,6 +125,9 @@
                 };
                 window.addEventListener('pagehide', () => { // Leave the channel when the tab closes, so the others' count drops right away.
                     subscription.unsubscribe();
+                });
+                window.addEventListener('pageshow', (event) => { // Back button: the browser restored this page from its cache, so subscribe again.
+                    if (event.persisted) subscription.subscribe();
                 });
                 pubnub.addListener({ // Count who is online once the connection to PubNub is up.
                     status: (statusEvent) => {
