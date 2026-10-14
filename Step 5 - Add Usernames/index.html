@@ -176,7 +176,7 @@
                     .catch((error) => console.log(error));
 
                 saveButton.addEventListener('click', () => { // Save your display name. It goes with every message you send from now on.
-                    displayName = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30);
+                    displayName = nameInput.value.replace(/[^\p{L}\p{N} ]/gu, '').substring(0, 30); // Letters, digits and spaces, up to 30 characters.
                     localStorage.setItem('chat-display-name', displayName);
                     alert('Your username has been updated.');
                     bootstrap.Modal.getOrCreateInstance(document.getElementById('editNameModal')).hide(); // Close Chat Options.
