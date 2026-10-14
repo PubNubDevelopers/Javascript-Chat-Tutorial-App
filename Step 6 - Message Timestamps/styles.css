@@ -33,3 +33,7 @@
 textarea {
     resize: none;
 }
+
+.msg-text {
+    white-space: pre-line;
+}
