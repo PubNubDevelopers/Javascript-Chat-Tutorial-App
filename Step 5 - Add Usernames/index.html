@@ -173,6 +173,7 @@
                     displayName = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30);
                     localStorage.setItem('chat-display-name', displayName);
                     alert('Your username has been updated.');
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('editNameModal')).hide(); // Close Chat Options.
                 });
 
             })();
