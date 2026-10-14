@@ -10,7 +10,7 @@ Tested with the PubNub JavaScript SDK 13.1.2 (October 2026).
 | `Step 2 - Basic Chat` | PubNub client, channel subscription, publish and receive messages |
 | `Step 3 - Add User Presence` | Live count of online users (Presence) |
 | `Step 4 - Add Message Persistence` | Last 10 messages on load (Message Persistence) |
-| `Step 5 - Add Usernames` | Display names stored in App Context, updated live with a Signal on `chat-signals` |
+| `Step 5 - Add Usernames` | Display names sent with each message (saved in `localStorage`) |
 | `Step 6 - Message Timestamps` | Send time on every message |
 
 The root `index.html` is the finished app (Step 6).
@@ -21,7 +21,6 @@ Replace `YOUR_PUBLISH_KEY` and `YOUR_SUBSCRIBE_KEY` in `index.html` with keys fr
 
 - **Presence** tracking events on all channels, or a Presence Management rule for `chat-channel` (step 3). New keysets track presence on selected channels only.
 - **Message Persistence** on (step 4). It's on by default.
-- **App Context** on (step 5). It's off by default.
 
 ## Run
 

@@ -66,26 +66,20 @@
                     nameInput = document.getElementById('nameInput'),
                     onlineCount = document.getElementById('online-users-count'),
                     channelName = 'chat-channel',
-                    channel = pubnub.channel(channelName),
-                    signalChannelName = 'chat-signals', // Signals get their own channel, apart from chat messages.
-                    usernames = {}; // Display names by User ID, read from App Context.
+                    channel = pubnub.channel(channelName);
 
                 class chatControl { // Formats messages and scrolls them into view.
                     publishMessage(name, msg) {
                         this.show(this.msg(name, msg, 'start', 'primary'));
                     }
-                    receiveMessage(userId, msg) {
-                        if (!(userId in usernames)) { // First message from this user: show the User ID until the name loads.
-                            usernames[userId] = userId;
-                            loadName(userId);
-                        }
-                        this.show(this.msg(usernames[userId], msg, 'end', 'secondary', userId));
+                    receiveMessage(name, msg) {
+                        this.show(this.msg(name, msg, 'end', 'secondary'));
                     }
                     show(card) {
                         messagesArea.appendChild(card);
                         messagesArea.scrollIntoView(false);
                     }
-                    msg(name, msg, side, style, userId) { // Builds a message card. textContent keeps message text from running as HTML.
+                    msg(name, msg, side, style) { // Builds a message card. textContent keeps message text from running as HTML.
                         const card = document.createElement('div');
                         card.className = `card text-white bg-${style}`;
                         const body = document.createElement('div');
@@ -94,7 +88,6 @@
                         title.className = `card-subtitle mb-2 text-${side}`;
                         const nameSpan = document.createElement('span');
                         nameSpan.textContent = name;
-                        if (userId) nameSpan.dataset.userId = userId; // Lets loadName() update this card when the name changes.
                         title.append(nameSpan);
                         const text = document.createElement('p');
                         text.className = `card-text float-${side} msg-text`;
@@ -106,24 +99,25 @@
                 }
                 const chat = new chatControl();
 
+                let displayName = localStorage.getItem('chat-display-name') || ''; // The name you send with your messages.
+                nameInput.value = displayName;
+
+                function readMessage(message) { // Messages from steps 2-4 are plain text; from step 5 on they carry a name.
+                    return typeof message === 'string' ? { text: message, name: '' } : message;
+                }
+
                 const subscription = channel.subscription({ receivePresenceEvents: true }); // Subscribe to receive messages and presence events.
                 subscription.onMessage = (event) => { // Get new messages.
+                    const { text, name } = readMessage(event.message);
                     if (event.publisher === pubnub.getUserId()) { // Check who sent the message.
-                        chat.publishMessage('You', event.message);
+                        chat.publishMessage('You', text);
                     } else {
-                        chat.receiveMessage(event.publisher, event.message);
+                        chat.receiveMessage(name || event.publisher, text);
                     }
                 };
                 subscription.onPresence = (event) => { // Update the number of online users on every join, leave or timeout.
                     onlineCount.textContent = event.occupancy;
                 };
-                const signalSubscription = pubnub.channel(signalChannelName).subscription(); // Receive name-change signals.
-                signalSubscription.onSignal = (event) => { // Another user changed their name: read it again.
-                    if (event.message === 'name-changed') {
-                        loadName(event.publisher);
-                    }
-                };
-                signalSubscription.subscribe();
                 pubnub.addListener({ // Count who is online once the connection to PubNub is up.
                     status: (statusEvent) => {
                         if (statusEvent.category === 'PNConnectedCategory') {
@@ -137,7 +131,7 @@
                     const msg = input.value.trim();
                     input.value = '';
                     if (msg !== '') {
-                        pubnub.publish({ channel: channelName, message: msg })
+                        pubnub.publish({ channel: channelName, message: { text: msg, name: displayName } }) // Send your name with every message.
                             .catch((error) => console.log(error));
                     }
                 }
@@ -162,37 +156,20 @@
                 pubnub.fetchMessages({ channels: [channelName], count: 10 }) // Get the last 10 messages sent in the chat.
                     .then((response) => {
                         (response.channels[channelName] || []).forEach((message) => {
+                            const { text, name } = readMessage(message.message);
                             if (message.uuid === pubnub.getUserId()) { // Check who sent the message.
-                                chat.publishMessage('You', message.message);
+                                chat.publishMessage('You', text);
                             } else {
-                                chat.receiveMessage(message.uuid, message.message);
+                                chat.receiveMessage(name || message.uuid, text);
                             }
                         });
                     })
                     .catch((error) => console.log(error));
 
-                function loadName(userId) { // Read a user's display name from App Context and update their messages.
-                    pubnub.objects.getUUIDMetadata({ uuid: userId })
-                        .then((response) => {
-                            usernames[userId] = response.data.name || userId;
-                            document.querySelectorAll(`[data-user-id="${CSS.escape(userId)}"]`).forEach((nameSpan) => {
-                                nameSpan.textContent = usernames[userId];
-                            });
-                        })
-                        .catch(() => {}); // No App Context record yet: keep showing the User ID.
-                }
-
-                saveButton.addEventListener('click', () => { // Save the new display name in App Context.
-                    const username = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30);
-                    pubnub.objects.setUUIDMetadata({ data: { name: username } })
-                        .then(() => {
-                            alert('Your username has been updated.');
-                            return pubnub.signal({ channel: signalChannelName, message: 'name-changed' }); // Tell the other clients to read the new name.
-                        })
-                        .catch((error) => {
-                            alert('Your username was not updated. See the console for details.');
-                            console.log(error);
-                        });
+                saveButton.addEventListener('click', () => { // Save your display name. It goes with every message you send from now on.
+                    displayName = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30);
+                    localStorage.setItem('chat-display-name', displayName);
+                    alert('Your username has been updated.');
                 });
 
             })();
