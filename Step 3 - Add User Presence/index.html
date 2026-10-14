@@ -108,6 +108,9 @@
                 subscription.onPresence = (event) => { // Update the number of online users on every join, leave or timeout.
                     onlineCount.textContent = event.occupancy;
                 };
+                window.addEventListener('pagehide', () => { // Leave the channel when the tab closes, so the others' count drops right away.
+                    subscription.unsubscribe();
+                });
                 pubnub.addListener({ // Count who is online once the connection to PubNub is up.
                     status: (statusEvent) => {
                         if (statusEvent.category === 'PNConnectedCategory') {
