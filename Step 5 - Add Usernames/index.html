@@ -118,8 +118,8 @@
                         chat.receiveMessage(name || event.publisher, text);
                     }
                 };
-                subscription.onPresence = (event) => { // Update the number of online users on every join, leave or timeout.
-                    onlineCount.textContent = event.occupancy;
+                subscription.onPresence = (event) => { // Update the number of online users on join, leave, timeout and interval events.
+                    if (event.action !== 'state-change') onlineCount.textContent = event.occupancy; // state-change events carry no occupancy.
                 };
                 window.addEventListener('pagehide', () => { // Leave the channel when the tab closes, so the others' count drops right away.
                     subscription.unsubscribe();
