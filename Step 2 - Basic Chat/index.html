@@ -14,7 +14,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Chat Options</h5>
-                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <p>Change your display name here.</p>
@@ -40,88 +40,86 @@
         </div>
         <span class="badge bg-primary online-users-label">Online Users: <span id="online-users-count">NA</span></span>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.1.2.min.js"></script>
+        <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.13.1.2.min.js"></script>
         <script>
             (function() {
 
-                function makeid(length) { // Used to create new user ids 
-                    var result           = '';
-                    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                    var charactersLength = characters.length;
-                    for ( var i = 0; i < length; i++ ) {
-                        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+                function makeid(length) { // Used to create new user IDs.
+                    let result = '';
+                    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    for (let i = 0; i < length; i++) {
+                        result += characters.charAt(Math.floor(Math.random() * characters.length));
                     }
                     return result;
                 }
 
-                var pubnub = new PubNub({ // Set your PubNub keys here 
-                    publishKey: 'demo',
-                    subscribeKey: 'demo',
-                    uuid: 'Anon-' + makeid(5)
+                const pubnub = new PubNub({ // Set your PubNub keys here.
+                    publishKey: 'YOUR_PUBLISH_KEY',
+                    subscribeKey: 'YOUR_SUBSCRIBE_KEY',
+                    userId: 'Anon-' + makeid(5)
                 });
-               
-                var messagesArea = document.getElementById('messages-area'),
+
+                const messagesArea = document.getElementById('messages-area'),
                     input = document.getElementById('input-box'),
                     sendButton = document.getElementById('send-button'),
-                    saveButton =  document.getElementById('saveOptionsButton'),
-                    nameInput =  document.getElementById('nameInput'),
-                    channel = 'chat-channel';
+                    channelName = 'chat-channel',
+                    channel = pubnub.channel(channelName);
 
-                class chatControl { // Formats messages and scrolls into view.
+                class chatControl { // Formats messages and scrolls them into view.
                     publishMessage(name, msg) {
-                        messagesArea.innerHTML = messagesArea.innerHTML + this.msg(name, msg, 'start', 'primary');
-                        messagesArea.scrollIntoView(false);
+                        this.show(this.msg(name, msg, 'start', 'primary'));
                     }
                     receiveMessage(name, msg) {
-                        messagesArea.innerHTML = messagesArea.innerHTML + this.msg(name, msg, 'end', 'secondary');
+                        this.show(this.msg(name, msg, 'end', 'secondary'));
+                    }
+                    show(card) {
+                        messagesArea.appendChild(card);
                         messagesArea.scrollIntoView(false);
                     }
-                    msg(name, msg, side, style) {
-                        var msgTemp = `
-                            <div class="card text-white bg-${style}">
-                                <div class="card-body">
-                                    <h6 class="card-subtitle mb-2 text-${side} display-${name}">${name}</h6>
-                                    <p class="card-text float-${side}">${msg}</p>
-                                </div>
-                            </div>
-                            `;
-                        return msgTemp;
+                    msg(name, msg, side, style) { // Builds a message card. textContent keeps message text from running as HTML.
+                        const card = document.createElement('div');
+                        card.className = `card text-white bg-${style}`;
+                        const body = document.createElement('div');
+                        body.className = 'card-body';
+                        const title = document.createElement('h6');
+                        title.className = `card-subtitle mb-2 text-${side}`;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = name;
+                        title.append(nameSpan);
+                        const text = document.createElement('p');
+                        text.className = `card-text float-${side} msg-text`;
+                        text.textContent = msg;
+                        body.append(title, text);
+                        card.append(body);
+                        return card;
                     }
                 }
-                var chat = new chatControl();
+                const chat = new chatControl();
 
-                pubnub.addListener({ // Get new messages.
-                    message: function(msg) {
-                        // console.log(msg);
-                        if (msg.publisher == pubnub.getUUID()) { // Check who sent the message.
-                            chat.publishMessage('You', msg.message);
-                        } else {
-                            chat.receiveMessage(msg.publisher, msg.message);
-                        }
-                    },
-                });
-                pubnub.subscribe({ // Subscribe to wait for messages
-                    channels: [channel]
-                });
-
-                function publishMessage() { // Send messages with PubNub.
-                    var msg = input.value.trim().replace(/(?:\r\n|\r|\n)/g, '<br>'); // Format message.
-                    input.value = '';
-                    if (msg != '') {
-                        var publishConfig = {
-                            channel: channel,
-                            message: msg
-                        };
-                        pubnub.publish(publishConfig, function(status, response) { // Publish message to current channel.
-                           // console.log(status, response);
-                        });
+                const subscription = channel.subscription(); // Subscribe to receive the channel's messages.
+                subscription.onMessage = (event) => { // Get new messages.
+                    if (event.publisher === pubnub.getUserId()) { // Check who sent the message.
+                        chat.publishMessage('You', event.message);
+                    } else {
+                        chat.receiveMessage(event.publisher, event.message);
                     }
                 };
-                sendButton.addEventListener("click", function(e) {
+                subscription.subscribe();
+
+                function publishMessage() { // Send messages with PubNub.
+                    const msg = input.value.trim();
+                    input.value = '';
+                    if (msg !== '') {
+                        pubnub.publish({ channel: channelName, message: msg })
+                            .catch((error) => console.log(error));
+                    }
+                }
+                sendButton.addEventListener('click', () => {
                     publishMessage();
                 });
-                input.addEventListener('keyup', function(e) {
-                    if ((e.keyCode || e.charCode) === 13) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { // Enter sends, Shift+Enter adds a new line.
+                        e.preventDefault();
                         publishMessage();
                     }
                 });
