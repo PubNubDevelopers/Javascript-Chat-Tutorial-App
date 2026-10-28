@@ -14,7 +14,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Chat Options</h5>
-                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <p>Change your display name here.</p>
@@ -40,179 +40,148 @@
         </div>
         <span class="badge bg-primary online-users-label">Online Users: <span id="online-users-count">NA</span></span>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.1.2.min.js"></script>
+        <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.13.1.3.min.js"></script>
         <script>
             (function() {
 
-                function makeid(length) { // Used to create new user ids 
-                    var result           = '';
-                    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                    var charactersLength = characters.length;
-                    for ( var i = 0; i < length; i++ ) {
-                        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+                function makeid(length) { // Used to create new user IDs.
+                    let result = '';
+                    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    for (let i = 0; i < length; i++) {
+                        result += characters.charAt(Math.floor(Math.random() * characters.length));
                     }
                     return result;
                 }
 
-                var pubnub = new PubNub({ // Set your PubNub keys here 
-                    publishKey: 'demo',
-                    subscribeKey: 'demo',
-                    uuid: 'Anon-' + makeid(5)
+                const pubnub = new PubNub({ // Set your PubNub keys here.
+                    publishKey: 'YOUR_PUBLISH_KEY',
+                    subscribeKey: 'YOUR_SUBSCRIBE_KEY',
+                    userId: 'Anon-' + makeid(5)
                 });
-               
-                var messagesArea = document.getElementById('messages-area'),
+
+                const messagesArea = document.getElementById('messages-area'),
                     input = document.getElementById('input-box'),
                     sendButton = document.getElementById('send-button'),
                     saveButton = document.getElementById('saveOptionsButton'),
                     nameInput = document.getElementById('nameInput'),
-                    channel = 'chat-channel',
-                    usernames = [];
+                    onlineCount = document.getElementById('online-users-count'),
+                    channelName = 'chat-channel',
+                    channel = pubnub.channel(channelName);
 
-                class chatControl { // Formats messages and scrolls into view.
-                    publishMessage(uuid, msg, timetoken) {
-                        if (msg != pubnub.getUUID()+"NEWUSERNAME"){
-                            messagesArea.innerHTML = messagesArea.innerHTML + this.msg(uuid, "You", msg, 'start', 'primary', timetoken);
-                            messagesArea.scrollIntoView(false);
-                        }
+                class chatControl { // Formats messages and scrolls them into view.
+                    publishMessage(name, msg, timetoken) {
+                        this.show(this.msg(name, msg, 'start', 'primary', timetoken));
                     }
-                    receiveMessage(uuid, msg, timetoken) {
-                        if (msg == uuid+"NEWUSERNAME"){
-                            pubnub.objects.getUUIDMetadata({ // Recheck metadata for new username and update previous messages.
-                                    uuid: uuid,
-                                },
-                                function (status, response) {
-                                    if (response) {
-                                        usernames[uuid] = response.data.name; // Set username from metadata.
-                                        for(var i = 0; i < document.getElementsByClassName('display-'+response.data.id).length; i++){ 
-                                            document.getElementsByClassName('display-'+response.data.id)[i].innerText = response.data.name;
-                                        }
-                                    }
-                                }
-                            );
-                        } else {
-                            if (!usernames[uuid]) { // Get the username if not stored.
-                                usernames[uuid] = uuid; // If username not set then set to the UUID.
-                                pubnub.objects.getUUIDMetadata({
-                                        uuid: uuid,
-                                    },
-                                    function (status, response) {
-                                        if (response) {
-                                            usernames[uuid] = response.data.name; // Set username from metadata.
-                                            for(var i = 0; i < document.getElementsByClassName('display-'+response.data.id).length; i++){ 
-                                                document.getElementsByClassName('display-'+response.data.id)[i].innerText = response.data.name;
-                                            }
-                                        }
-                                    }
-                                );
-                            }
-                            messagesArea.innerHTML = messagesArea.innerHTML + this.msg(uuid, usernames[uuid], msg, 'end', 'secondary', timetoken);
-                            messagesArea.scrollIntoView(false);
-                        }
+                    receiveMessage(name, msg, timetoken) {
+                        this.show(this.msg(name, msg, 'end', 'secondary', timetoken));
                     }
-                    msg(uuid, name, msg, side, style, timetoken) {                        
-                        var date = new Date(Math.trunc((timetoken / 10000), 16)); 
-                        var timedisplay = date.toLocaleString();
-                        var msgTemp = `
-                            <div class="card text-white bg-${style}">
-                                <div class="card-body">
-                                    <h6 class="card-subtitle mb-2 text-${side}"><span class="display-${uuid}">${name}<span><small> - ${timedisplay}</small></h6>
-                                    <p class="card-text float-${side}">${msg}</p>
-                                </div>
-                            </div>
-                            `;
-                        return msgTemp;
+                    show(card) {
+                        messagesArea.appendChild(card);
+                        messagesArea.scrollIntoView(false);
+                    }
+                    msg(name, msg, side, style, timetoken) { // Builds a message card. textContent keeps message text from running as HTML.
+                        const card = document.createElement('div');
+                        card.className = `card text-white bg-${style}`;
+                        const body = document.createElement('div');
+                        body.className = 'card-body';
+                        const title = document.createElement('h6');
+                        title.className = `card-subtitle mb-2 text-${side}`;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = name;
+                        const time = document.createElement('small');
+                        time.textContent = ' - ' + new Date(Math.trunc(Number(timetoken) / 10000)).toLocaleString(); // A timetoken counts 100-nanosecond intervals.
+                        title.append(nameSpan, time);
+                        const text = document.createElement('p');
+                        text.className = `card-text float-${side} msg-text`;
+                        text.textContent = msg;
+                        body.append(title, text);
+                        card.append(body);
+                        return card;
                     }
                 }
-                var chat = new chatControl();
+                const chat = new chatControl();
 
-                pubnub.addListener({ // Get new messages.
-                    message: function(msg) {
-                        // console.log(msg);
-                        if (msg.publisher == pubnub.getUUID()) { // Check who sent the message.
-                            chat.publishMessage('You', msg.message, msg.timetoken);
-                        } else {
-                            chat.receiveMessage(msg.publisher, msg.message, msg.timetoken);
-                        }
-                    },
-                    presence: (presenceEvent) => { // Update the number of online members.
-                        document.getElementById("online-users-count").innerHTML = presenceEvent.occupancy;
+                let displayName = localStorage.getItem('chat-display-name') || ''; // The name you send with your messages.
+                nameInput.value = displayName;
+
+                function readMessage(message) { // Messages from steps 2-4 are plain text; from step 5 on they carry a name.
+                    if (message && typeof message === 'object') { // Anyone with the keys can publish, so don't trust the shape.
+                        return { text: String(message.text ?? ''), name: typeof message.name === 'string' ? message.name : '' };
                     }
-                });
-                pubnub.subscribe({ // Subscribe to wait for messages
-                    channels: [channel]
-                });
+                    return { text: String(message ?? ''), name: '' };
+                }
 
-                function publishMessage() { // Send messages with PubNub.
-                    var msg = input.value.trim().replace(/(?:\r\n|\r|\n)/g, '<br>'); // Format message.
-                    input.value = '';
-                    if (msg != '') {
-                        var publishConfig = {
-                            channel: channel,
-                            message: msg
-                        };
-                        pubnub.publish(publishConfig, function(status, response) { // Publish message to current channel.
-                           // console.log(status, response);
-                        });
+                const subscription = channel.subscription({ receivePresenceEvents: true }); // Subscribe to receive messages and presence events.
+                subscription.onMessage = (event) => { // Get new messages.
+                    const { text, name } = readMessage(event.message);
+                    if (event.publisher === pubnub.getUserId()) { // Check who sent the message.
+                        chat.publishMessage('You', text, event.timetoken);
+                    } else {
+                        chat.receiveMessage(name || event.publisher, text, event.timetoken);
                     }
                 };
-                sendButton.addEventListener("click", function(e) {
+                subscription.onPresence = (event) => { // Update the number of online users on join, leave, timeout and interval events.
+                    if (event.action !== 'state-change') onlineCount.textContent = event.occupancy; // state-change events carry no occupancy.
+                };
+                window.addEventListener('pagehide', () => { // Leave the channel when the tab closes, so the others' count drops right away.
+                    subscription.unsubscribe();
+                });
+                window.addEventListener('pageshow', (event) => { // Back button: the browser restored this page from its cache, so subscribe again.
+                    if (event.persisted) subscription.subscribe();
+                });
+                pubnub.addListener({ // Count who is online once the connection to PubNub is up.
+                    status: (statusEvent) => {
+                        if (statusEvent.category === 'PNConnectedCategory') {
+                            updateOccupancy();
+                        }
+                    }
+                });
+                subscription.subscribe();
+
+                function publishMessage() { // Send messages with PubNub.
+                    const msg = input.value.trim();
+                    input.value = '';
+                    if (msg !== '') {
+                        pubnub.publish({ channel: channelName, message: { text: msg, name: displayName } }) // Send your name with every message.
+                            .catch((error) => console.log(error));
+                    }
+                }
+                sendButton.addEventListener('click', () => {
                     publishMessage();
                 });
-                input.addEventListener('keyup', function(e) {
-                    if ((e.keyCode || e.charCode) === 13) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { // Enter sends, Shift+Enter adds a new line.
+                        e.preventDefault();
                         publishMessage();
                     }
                 });
 
-                pubnub.hereNow({ // Update the number of online members.
-                    channels: [channel],
-                }).then((response) => {
-                    document.getElementById("online-users-count").innerHTML = response.totalOccupancy;
-                }).catch((error) => {
-                    console.log(error)
-                });
-
-                pubnub.fetchMessages( // Get the last 10 messages sent in the chat.
-                    {
-                        channels: [channel],
-                        count: 10,
-                    },
-                    function (status, response) {
-                        if (response.channels[channel] && channel in response.channels) {
-                            response.channels[channel].forEach((message) => {
-                                // console.log(message);
-                                if (message.uuid == pubnub.getUUID()) { // Check who sent the message.
-                                    chat.publishMessage('You', message.message, message.timetoken);
-                                } else {
-                                    chat.receiveMessage(message.uuid, message.message, message.timetoken);
-                                }
-                            });
-                        }
-                    }
-                );
-
-                saveButton.addEventListener("click", function(e) { // Save new username 
-                    username = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30);
-                    pubnub.objects.setUUIDMetadata({
-                        data: {
-                            name: username
-                        }
-                    })
-                    .then((resp) => {
-                        alert("Your username has been updated.");
-                        var publishConfig = { // Send a message to force username to update on other clients.
-                            channel: channel,
-                            message: pubnub.getUUID() + "NEWUSERNAME"
-                        };
-                        pubnub.publish(publishConfig, function(status, response) { // Publish message to current channel.
-                        // console.log(status, response);
-                        });
-                            // console.log(resp);
+                function updateOccupancy() { // Ask PubNub how many users are on the channel right now.
+                    pubnub.hereNow({ channels: [channelName] })
+                        .then((response) => {
+                            onlineCount.textContent = response.totalOccupancy;
                         })
-                    .catch((error) => {
-                        alert("Your username was not updated. See console for details.");
-                        console.log(err);
-                    });                    
+                        .catch((error) => console.log(error));
+                }
+
+                pubnub.fetchMessages({ channels: [channelName], count: 10 }) // Get the last 10 messages sent in the chat.
+                    .then((response) => {
+                        (response.channels[channelName] || []).forEach((message) => {
+                            const { text, name } = readMessage(message.message);
+                            if (message.uuid === pubnub.getUserId()) { // Check who sent the message.
+                                chat.publishMessage('You', text, message.timetoken);
+                            } else {
+                                chat.receiveMessage(name || message.uuid, text, message.timetoken);
+                            }
+                        });
+                    })
+                    .catch((error) => console.log(error));
+
+                saveButton.addEventListener('click', () => { // Save your display name. It goes with every message you send from now on.
+                    displayName = nameInput.value.replace(/[^\p{L}\p{N} ]/gu, '').substring(0, 30); // Letters, digits and spaces, up to 30 characters.
+                    localStorage.setItem('chat-display-name', displayName);
+                    alert('Your username has been updated.');
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('editNameModal')).hide(); // Close Chat Options.
                 });
 
             })();
