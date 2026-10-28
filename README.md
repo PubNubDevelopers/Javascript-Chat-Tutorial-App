@@ -2,7 +2,7 @@
 
 Code for the PubNub tutorial [Build a JavaScript chat app with PubNub](https://www.pubnub.com/tutorials/javascript-sdk-chat-app/): a browser chat in plain HTML and JavaScript, with no build step and no server.
 
-Tested with the PubNub JavaScript SDK 13.1.2 (October 2026).
+Tested with the PubNub JavaScript SDK 13.1.3 (October 2026).
 
 | Folder | Adds |
 |---|---|
