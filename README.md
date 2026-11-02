@@ -17,7 +17,7 @@ The root `index.html` is the finished app (Step 6).
 
 ## Keys
 
-Replace `YOUR_PUBLISH_KEY` and `YOUR_SUBSCRIBE_KEY` in `index.html` with keys from a keyset that has:
+The code uses PubNub's public `demo` keys, so it runs as is. Anyone with the same keys can read and write the same channels, so for your own app replace `'demo'` in `publishKey` and `subscribeKey` in `index.html` with keys from your own keyset. It needs:
 
 - **Presence** tracking events on all channels, or a Presence Management rule for `chat-channel` (step 3). New keysets track presence on selected channels only.
 - **Message Persistence** on (step 4). It's on by default.
